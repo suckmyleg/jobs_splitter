@@ -1,16 +1,19 @@
 from random import randint as rd
 from threading import Thread as Th
 from time import sleep
+from json import loads
 
 class jobs_splitter:
-	def __init__(self, threads=False, delete_job=True, debug=False):
+	def __init__(self, threads=False, delete_job=True, debug=False, auto_thread=False):
 		if not threads:
 			threads = 1
 
+		self.auto_thread = auto_thread
 		self.threads = threads
 		self.jobs = {}
 		self.delete_job = delete_job
 		self.debug = debug
+		self.threading_info = loads(open("data.json").read())
 
 	def get_new_job_id(self):
 		while True:
@@ -42,7 +45,7 @@ class jobs_splitter:
 
 			if now_status == status:
 				break
-			sleep(0.01)
+			sleep(0.001)
 
 	def do_job(self, job, elements, job_id, worker_id):
 		self.jobs[job_id]["workers_status"][worker_id] = 0
@@ -64,15 +67,34 @@ class jobs_splitter:
 			if status == 1:
 				break
 
+	def get_thread_n_by_elements(self, n):
+
+		try:
+			inf = self.threading_info[n-1]
+		except:
+			inf = self.threading_info[len(self.threading_info)-1]
+
+		slower = [False, False]
+
+		for n in inf[1]:
+			if not slower[0] or slower[0] > n[1]:
+				slower = [n[1], n[0]]
+
+		print("Slower_option: ", slower)
+
+		return slower[1]
+
 	def split_job(self, job, elements, n=False):
-
-		if not n:
-			n = self.threads
-
 		lenel = len(elements)
 
 		if lenel == 0:
 			return []
+
+		if self.auto_thread:
+			n = self.get_thread_n_by_elements(lenel)
+
+		if not n:
+			n = self.threads
  
 		id = self.get_new_job_id()
 

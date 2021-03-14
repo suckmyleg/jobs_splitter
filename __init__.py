@@ -1,5 +1,5 @@
 class jobs_splitter:
-	def __init__(self, threads):
+	def __init__(self, threads=False):
 		if not threads:
 			threads = 1
 

@@ -4,7 +4,7 @@ from time import sleep
 from json import loads
 
 class jobs_splitter:
-	def __init__(self, threads=False, delete_job=True, debug=False, auto_thread=False):
+	def __init__(self, threads=False, delete_job=True, debug=False, auto_thread=False, interval_log=1, log=False):
 		if not threads:
 			threads = 1
 
@@ -13,6 +13,8 @@ class jobs_splitter:
 		self.jobs = {}
 		self.delete_job = delete_job
 		self.debug = debug
+		self.log = log
+		self.interval_log = interval_log
 		self.threading_info = loads(open("data.json").read())
 
 	def get_new_job_id(self):
@@ -27,18 +29,20 @@ class jobs_splitter:
 	def info(self, job_id):
 		while True:
 			try:
+				print(self.jobs)
+				"""
 				print(job_id)
 				for t in self.jobs[job_id]["workers_status"]:
 					print(t)
-				print("")
+				print("")"""
 			except:
 				return True
-			#sleep(0.001)
+			sleep(self.interval_log)
 
 	def wait_until(self, job_id, status):
 		while True:
 			try:
-				#print(job_id, self.jobs)
+				#print(self.jobs)
 				now_status = self.jobs[job_id]["status"]
 			except:
 				return True
@@ -120,17 +124,26 @@ class jobs_splitter:
 		t.start()
 		threads.append(t)
 
-		if self.debug:
+		if self.log:
+			print("Loging every {} seconds".format(self.interval_log))
 			t = Th(target=self.info, args=(id, ))
 			t.start()
 			threads.append(t)
 
 		worker_id = 0
-		#print("Starting job: {}".format(id))
+		if self.debug:
+			ll = len(elements_splitted)
+			print("Starting job: {}".format(id))
 		for i in elements_splitted:
-			t = Th(target=self.do_job, args=(job, i, id, worker_id))
-			threads.append(t)
-			worker_id += 1
+			if len(i) < 0:
+				break
+			else:
+				if self.debug:
+					print("Starting worker: {}/{}".format(worker_id+1, ll))
+				t = Th(target=self.do_job, args=(job, i, id, worker_id))
+				t.start()
+				threads.append(t)
+				worker_id += 1
 
 		self.wait_until(id, 1)
 

@@ -116,7 +116,6 @@ class jobs_splitter:
 				i = 0
 				e += 1
 
-
 		t = Th(target=self.reload_status, args=(id, ))
 		t.start()
 		threads.append(t)
@@ -129,14 +128,9 @@ class jobs_splitter:
 		worker_id = 0
 		#print("Starting job: {}".format(id))
 		for i in elements_splitted:
-			if self.debug:
-				pass
-				#print("Worker: {}".format(worker_id))
 			t = Th(target=self.do_job, args=(job, i, id, worker_id))
-			t.start()
 			threads.append(t)
 			worker_id += 1
-
 
 		self.wait_until(id, 1)
 

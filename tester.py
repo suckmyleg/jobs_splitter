@@ -28,13 +28,18 @@ elements = 200
 data = []
 for p in range(elements):
 
-	inf = test(50, p+1)
+	inf = test(1, p+1, start_t=p)
 
-	data.append([p+1, inf])
+	data = ([p+1, inf])
 
-for d in data:
-	print(d)
+	#print(m.jobs)
 
-open("data.json", "w").write(dumps(data))
+	#for d in data:
+		#print(d)
+
+
+	#open("data.json", "w").write(dumps(data))
+	
+
 
 input()

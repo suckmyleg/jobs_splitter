@@ -10,6 +10,7 @@ class jobs_splitter:
 
 		self.auto_thread = auto_thread
 		self.threads = threads
+		self.running_threads = []
 		self.jobs = {}
 		self.delete_job = delete_job
 		self.debug = debug
@@ -29,7 +30,10 @@ class jobs_splitter:
 	def info(self, job_id):
 		while True:
 			try:
-				print(self.jobs)
+				info = self.jobs[job_id]
+
+				print("")
+				print({"workers_running": info["workers_running"], "status":info["status"], "workers":info["workers"]})
 				"""
 				print(job_id)
 				for t in self.jobs[job_id]["workers_status"]:
@@ -42,7 +46,6 @@ class jobs_splitter:
 	def wait_until(self, job_id, status):
 		while True:
 			try:
-				#print(self.jobs)
 				now_status = self.jobs[job_id]["status"]
 			except:
 				return True
@@ -51,9 +54,9 @@ class jobs_splitter:
 				break
 			sleep(0.001)
 
-	def do_job(self, job, elements, job_id, worker_id):
-		self.jobs[job_id]["workers_status"][worker_id] = 0
-		self.wait_until(job_id, 0)
+	def worker(self, job, elements, job_id, worker_id):
+		self.jobs[job_id]["workers_running"] += 1
+		self.wait_until(job_id, 1)
 		for e in elements:
 			try:
 				r = job(e)
@@ -62,13 +65,13 @@ class jobs_splitter:
 				print("Jobs_splitter: \n--Error: {}\n--Worker_id: {}\n--Job_id: {}\n--Job: {}\n--Element: {}".format(error, worker_id, job_id, job, e))
 			if not r == None:
 				self.jobs[job_id]["values"][worker_id].append(r)
-		self.jobs[job_id]["workers_status"][worker_id] = 1
+		self.jobs[job_id]["workers_running"] -= 1
 
 	def reload_status(self, job_id):
 		while True:
 			status = self.get_status(job_id)
 			self.jobs[job_id]["status"] = status
-			if status == 1:
+			if status == 0:
 				break
 
 	def get_thread_n_by_elements(self, n):
@@ -88,6 +91,57 @@ class jobs_splitter:
 
 		return slower[1]
 
+	def round(self, n):
+		nn = int(n)
+		if n-nn > 0:
+			n += 1
+		return n
+
+	def get_number_of_workers_needed(self, threads, n_elements):
+		r = threads - n_elements
+		if r > 0:
+			threads -= r
+		return threads
+
+	def split_elements(self, all_elements, n):
+
+		lenel = len(all_elements)
+
+		n_times = int(lenel/n)
+
+		if lenel%n > 0:
+			n_times += 1
+
+		n_workers = self.get_number_of_workers_needed(n, lenel)
+
+		elements_splitted = []
+
+		for i in range(n_workers):
+			elements_splitted.append([all_elements[a+i*(n_times)] for a in range(n_times)])
+
+		return elements_splitted, n_workers
+
+	def start_reloading_status(self, job_id):
+
+		t = Th(target=self.reload_status, args=(job_id, ))
+		t.start()
+		self.running_threads.append(t)
+
+	def create_new_job(self, n):
+		id = self.get_new_job_id()
+
+		self.jobs[id] = {"values":[[] for a in range(n)], "workers_running":0, "status":2, "workers":n}
+
+		return id
+
+	def setup_wokers(self, elements_splitted, job, job_id):
+		worker_id = 0
+		for i in elements_splitted:
+			t = Th(target=self.worker, args=(job, i, job_id, worker_id))
+			t.start()
+			self.running_threads.append(t)
+			worker_id += 1
+
 	def split_job(self, job, elements, n=False):
 		lenel = len(elements)
 
@@ -96,75 +150,47 @@ class jobs_splitter:
 
 		if self.auto_thread:
 			n = self.get_thread_n_by_elements(lenel)
-
 		if not n:
 			n = self.threads
  
-		id = self.get_new_job_id()
+		elements_splitted, n_workers = self.split_elements(elements, n)
 
-		self.jobs[id] = {"values":[[] for a in range(n)], "workers_status":[2 for a in range(n)], "status":2}
+		job_id = self.create_new_job(n_workers)
 
-		threads = []
-
-		l = int(lenel/n)
-		if lenel%n > 0:
-			l += 1
-
-		elements_splitted = [[] for a in range(n)]
-		i = 0
-		e = 0
-		for element in elements:
-			i += 1
-			elements_splitted[e].append(element)
-			if i == l:
-				i = 0
-				e += 1
-
-		t = Th(target=self.reload_status, args=(id, ))
-		t.start()
-		threads.append(t)
+		self.start_reloading_status(job_id)
 
 		if self.log:
 			print("Loging every {} seconds".format(self.interval_log))
-			t = Th(target=self.info, args=(id, ))
+			t = Th(target=self.info, args=(job_id, ))
 			t.start()
-			threads.append(t)
+			self.running_threads.append(t)
 
-		worker_id = 0
 		if self.debug:
 			ll = len(elements_splitted)
-			print("Starting job: {}".format(id))
-		for i in elements_splitted:
-			if len(i) < 0:
-				break
-			else:
-				if self.debug:
-					print("Starting worker: {}/{}".format(worker_id+1, ll))
-				t = Th(target=self.do_job, args=(job, i, id, worker_id))
-				t.start()
-				threads.append(t)
-				worker_id += 1
+			print("Starting job: {} - Workers: {}".format(job_id, ll))
 
-		self.wait_until(id, 1)
+		self.setup_wokers(elements_splitted, job, job_id)
+
+		self.wait_until(job_id, 0)
 
 		result = []
 
-		for m in self.jobs[id]["values"]:
+		for m in self.jobs[job_id]["values"]:
 			result += m
+
 		if self.delete_job:
-			del self.jobs[id]
+			del self.jobs[job_id]
+
 		return result
 
 	def get_status(self, id):
-		statuses = self.jobs[id]["workers_status"]
-
-		if 0 in statuses:
-			return 0
+		if self.jobs[id]["workers_running"] == self.jobs[id]["workers"]:
+			return 1
 		else:
-			if 2 in statuses:
-				return 2
-			else:
-				if 1 in statuses:
+			if not self.jobs[id]["status"] == 2:
+				if self.jobs[id]["workers_running"] == 0:
+					return 0
+				else:
 					return 1
-
-
+			else:
+				return 2

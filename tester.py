@@ -48,9 +48,9 @@ def function_for_testing(mess):
 
 def show():
 	thread = 100
-	elements = range(9999)
+	elements = range(100)
 
-	m.split_job(function_for_testing, elements, n=thread)
+	print(m.split_job(function_for_testing, elements, n=thread))
 
 show()
 

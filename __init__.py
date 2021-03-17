@@ -225,13 +225,10 @@ class jobs_splitter:
 		return result
 
 	def get_status(self, id):
-		if self.jobs[id]["workers_running"] == self.jobs[id]["workers"]:
+		if self.jobs[id]["workers_running"] == self.jobs[id]["workers"] or not self.jobs[id]["workers_running"] == 0:
 			return 1
 		else:
-			if not self.jobs[id]["status"] == 2:
-				if self.jobs[id]["workers_running"] == 0:
-					return 0
-				else:
-					return 1
+			return self.jobs[id]["status"]
+
 			else:
 				return 2

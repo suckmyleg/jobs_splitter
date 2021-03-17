@@ -4,7 +4,11 @@ from time import sleep, time
 
 from json import dumps
 
-m = jobs_splitter(10, debug=False, auto_thread=False, log=True, interval_log=0.1)
+from threading import Thread as th
+
+import random
+
+m = jobs_splitter(10, debug=False, auto_thread=False, log=False, interval_log=0.1)
 
 def function_test(l):
 	sleep(0.5)
@@ -22,6 +26,7 @@ def test(ran, ran2, start_t=0):
 		m.split_job(function_test, t, n=i)
 		data.append([threads, time()-a])
 	return data
+
 def testing():
 	elements = 200
 
@@ -45,13 +50,21 @@ def function_for_testing(mess):
 	sleep(0.01)
 	return 1
 
+def show_multiple(n):
+	m.start_log()
+	threads = []
+	for i in range(n):
+		t = th(target=show)
+		t.start()
+		threads.append(t)
 
 def show():
-	thread = 100
-	elements = range(100)
 
-	print(m.split_job(function_for_testing, elements, n=thread))
+	thread = 10
+	elements = range(random.randint(100, 150))
 
-show()
+	m.split_job(function_for_testing, elements, n=thread)
 
-input()
+show_multiple(15)
+
+input("Finished")

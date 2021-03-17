@@ -27,20 +27,37 @@ class jobs_splitter:
 			except:
 				return id
 
-	def info(self, job_id):
-		while True:
-			try:
-				info = self.jobs[job_id]
+	def display_info_from_job(self, job_id):
+		info = self.jobs[job_id]
+		print({"workers_running": info["workers_running"], "status":info["status"], "workers":info["workers"]})
 
-				print("")
-				print({"workers_running": info["workers_running"], "status":info["status"], "workers":info["workers"]})
-				"""
-				print(job_id)
-				for t in self.jobs[job_id]["workers_status"]:
-					print(t)
-				print("")"""
-			except:
-				return True
+	def get_jobs_ids(self):
+		return self.jobs.keys()
+
+	def info(self, job_idd=False):
+		if not job_idd:
+			jobs_ids = []
+		else:
+			jobs_ids = [job_id]
+
+		print("Loging: {}".format(jobs_ids))
+
+
+		while True:
+			if not job_idd:
+				jobs_ids = self.get_jobs_ids()
+			print("")
+			for job_id in jobs_ids:
+				try:
+					self.display_info_from_job(job_id)
+
+					#print(self.jobs)
+					"""
+					for t in self.jobs[job_id]["workers_status"]:
+						print(t)
+					print("")"""
+				except:
+					return True
 			sleep(self.interval_log)
 
 	def wait_until(self, job_id, status):
@@ -54,18 +71,32 @@ class jobs_splitter:
 				break
 			sleep(0.001)
 
-	def worker(self, job, elements, job_id, worker_id):
-		self.jobs[job_id]["workers_running"] += 1
-		self.wait_until(job_id, 1)
-		for e in elements:
-			try:
-				r = job(e)
-			except Exception as error:
-				r = None
-				print("Jobs_splitter: \n--Error: {}\n--Worker_id: {}\n--Job_id: {}\n--Job: {}\n--Element: {}".format(error, worker_id, job_id, job, e))
-			if not r == None:
-				self.jobs[job_id]["values"][worker_id].append(r)
+	def display_worker_info(self, worker_id, job_id, job, element=False, error=False):
+		print("Jobs_splitter: \n--Error: {}\n--Worker_id: {}\n--Job_id: {}\n--Job: {}".format(error, worker_id, job_id, job))
+		if element:
+			print("--Element: {}".format(element))
+
+	def stop_worker(self, job_id):
 		self.jobs[job_id]["workers_running"] -= 1
+
+	def worker(self, job, elements, job_id, worker_id):
+		try:
+			self.jobs[job_id]["workers_running"] += 1
+			self.wait_until(job_id, 1)
+			for e in elements:
+				try:
+					r = job(e)
+				except Exception as error:
+					r = None
+					self.display_worker_info(worker_id, job_id, job, error=e)
+				if not r == None:
+					self.jobs[job_id]["values"][worker_id].append(r)
+		except Exception as e:
+			print("Fatal error with worker:")
+			self.display_worker_info(worker_id, job_id, job, error=e)
+		
+		self.stop_worker(job_id)
+
 
 	def reload_status(self, job_id):
 		while True:
@@ -75,7 +106,6 @@ class jobs_splitter:
 				break
 
 	def get_thread_n_by_elements(self, n):
-
 		try:
 			inf = self.threading_info[n-1]
 		except:
@@ -116,8 +146,10 @@ class jobs_splitter:
 
 		elements_splitted = []
 
+		print(lenel, n_workers)
+
 		for i in range(n_workers):
-			elements_splitted.append([all_elements[a+i*(n_times)] for a in range(n_times)])
+			elements_splitted.append([all_elements[a+i*(n_times)] for a in range(lenel-i*(n_times))])
 
 		return elements_splitted, n_workers
 
@@ -135,12 +167,24 @@ class jobs_splitter:
 		return id
 
 	def setup_wokers(self, elements_splitted, job, job_id):
+		if self.debug:
+			print("Setuping workers")
 		worker_id = 0
 		for i in elements_splitted:
 			t = Th(target=self.worker, args=(job, i, job_id, worker_id))
 			t.start()
 			self.running_threads.append(t)
 			worker_id += 1
+		if self.debug:
+			print("Finished setuping workers")
+
+	def start_log(self, interval_log=False, job_id=False):
+		if not interval_log:
+			interval_log = self.interval_log
+		print("Loging every {} seconds".format(interval_log))
+		t = Th(target=self.info, args=(job_id, ))
+		t.start()
+		self.running_threads.append(t)
 
 	def split_job(self, job, elements, n=False):
 		lenel = len(elements)
@@ -160,10 +204,7 @@ class jobs_splitter:
 		self.start_reloading_status(job_id)
 
 		if self.log:
-			print("Loging every {} seconds".format(self.interval_log))
-			t = Th(target=self.info, args=(job_id, ))
-			t.start()
-			self.running_threads.append(t)
+			self.start_log(self.interval_log, job_id)
 
 		if self.debug:
 			ll = len(elements_splitted)

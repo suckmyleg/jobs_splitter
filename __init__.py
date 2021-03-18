@@ -32,7 +32,7 @@ class jobs_splitter:
 		print({"workers_running": info["workers_running"], "status":info["status"], "workers":info["workers"]})
 
 	def get_jobs_ids(self):
-		return self.jobs.keys()
+		return list(self.jobs)
 
 	def info(self, job_idd=False):
 		if not job_idd:

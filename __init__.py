@@ -27,9 +27,11 @@ class jobs_splitter:
 			except:
 				return id
 
-	def display_info_from_job(self, job_id):
+	def get_info_from_job(self, job_id):
 		info = self.jobs[job_id]
-		print({"workers_running": info["workers_running"], "status":info["status"], "workers":info["workers"]})
+		return "Job: {}, Workers({}): {}{}, Status: {}, Total_workers: {}".format(job_id, info["workers_running"], info["workers_running"]*"X", (info["workers"]-info["workers_running"])*" ", info["status"], info["workers"])
+
+		#return {"job_id":job_id, "workers_running": "("+info["workers_running"]+")"+info["workers_running"]*"X", "status":info["status"], "workers":info["workers"]}
 
 	def get_jobs_ids(self):
 		return list(self.jobs)
@@ -46,10 +48,11 @@ class jobs_splitter:
 		while True:
 			if not job_idd:
 				jobs_ids = self.get_jobs_ids()
-			print("")
+			last = ""
+			output = ""
 			for job_id in jobs_ids:
 				try:
-					self.display_info_from_job(job_id)
+					output += "\n"+str(self.get_info_from_job(job_id))
 
 					#print(self.jobs)
 					"""
@@ -58,6 +61,9 @@ class jobs_splitter:
 					print("")"""
 				except:
 					return True
+			if not last == output:
+				last = output
+				print(output)
 			sleep(self.interval_log)
 
 	def wait_until(self, job_id, status):
@@ -69,7 +75,7 @@ class jobs_splitter:
 
 			if now_status == status:
 				break
-			sleep(0.001)
+			sleep(0.01)
 
 	def display_worker_info(self, worker_id, job_id, job, element=False, error=False):
 		print("Jobs_splitter: \n--Error: {}\n--Worker_id: {}\n--Job_id: {}\n--Job: {}".format(error, worker_id, job_id, job))
@@ -78,6 +84,24 @@ class jobs_splitter:
 
 	def stop_worker(self, job_id):
 		self.jobs[job_id]["workers_running"] -= 1
+
+	def remote_worker(self, job_name, elements, job_id, worker_id):
+		try:
+			self.jobs[job_id]["workers_running"] += 1
+			self.wait_until(job_id, 1)
+			for e in elements:
+				try:
+					r = job(e)
+				except Exception as error:
+					r = None
+					self.display_worker_info(worker_id, job_id, job, error=e)
+				if not r == None:
+					self.jobs[job_id]["values"][worker_id].append(r)
+		except Exception as e:
+			print("Fatal error with worker:")
+			self.display_worker_info(worker_id, job_id, job, error=e)
+		
+		self.stop_worker(job_id)
 
 	def worker(self, job, elements, job_id, worker_id):
 		try:
@@ -146,7 +170,7 @@ class jobs_splitter:
 
 		elements_splitted = []
 
-		print(lenel, n_workers)
+		#print(lenel, n_workers)
 
 		for i in range(n_workers):
 			elements_splitted.append([all_elements[a+i*(n_times)] for a in range(lenel-i*(n_times))])
@@ -225,10 +249,13 @@ class jobs_splitter:
 		return result
 
 	def get_status(self, id):
-		if self.jobs[id]["workers_running"] == self.jobs[id]["workers"] or not self.jobs[id]["workers_running"] == 0:
+		if self.jobs[id]["workers_running"] == self.jobs[id]["workers"]:
 			return 1
 		else:
-			return self.jobs[id]["status"]
-
+			if not self.jobs[id]["status"] == 2:
+				if self.jobs[id]["workers_running"] == 0:
+					return 0
+				else:
+					return 1
 			else:
 				return 2

@@ -11,7 +11,7 @@ import random
 m = jobs_splitter(10, debug=False, auto_thread=False, log=False, interval_log=0.1)
 
 def function_test(l):
-	sleep(0.5)
+	sleep(0.1)
 	return l
 
 def test(ran, ran2, start_t=0):
@@ -47,8 +47,8 @@ def testing():
 		
 def function_for_testing(mess):
 	#print(mess)#, "Sleeping for 3 seconds")
-	sleep(0.01)
-	return 1
+	#sleep(0.001)
+	return [1 for a in range(1000)]
 
 def show_multiple(n):
 	m.start_log()
@@ -60,11 +60,13 @@ def show_multiple(n):
 
 def show():
 
-	thread = 10
-	elements = range(random.randint(100, 150))
+	thread = 100
+	elements = range(999)
+
+	print(elements)
 
 	m.split_job(function_for_testing, elements, n=thread)
 
-show_multiple(15)
+show_multiple(5)
 
 input("Finished")

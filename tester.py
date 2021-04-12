@@ -48,7 +48,7 @@ def testing():
 def function_for_testing(mess):
 	#print(mess)#, "Sleeping for 3 seconds")
 	#sleep(0.001)
-	return [1 for a in range(1000)]
+	return [1 for a in range(10)]
 
 def show_multiple(n):
 	m.start_log()
@@ -61,12 +61,12 @@ def show_multiple(n):
 def show():
 
 	thread = 100
-	elements = range(999)
+	elements = range(99999)
 
 	print(elements)
 
 	m.split_job(function_for_testing, elements, n=thread)
 
-show_multiple(5)
+show_multiple(1)
 
 input("Finished")
